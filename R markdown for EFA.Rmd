@@ -1,0 +1,131 @@
+---
+title: "Exploratory Factor Analysis on R Workshop Data"
+---
+
+# 1) Data cleaning
+```{r Data loading, message=FALSE, warning=FALSE , results='asis'}
+library(readxl)
+
+workshop <-read_excel("R beginner workshop for data science (IITB-NMEICT).xls",col_names = TRUE)
+
+colnames(workshop)<-c("Name","Institute","Audience","Age","Background","Other Background","Software other than R","Other software from list","other software not in list","Use time of stat  software","Using R in institute","Purpose for R in institute","Other purpose for R in institute","Reasons to learn R","Other reasons to learn R","Pre training duration","Spoken tutorial well made","Spoken tutorial need improvement","Spoken tutorial are unclear","Learned a lot via spoken tutorial","How to use setwd", "How to use ggplot", "How to use ggplot aes","How to use dplyr","How to use pipe","How to use import","How to use rstudio","How to use rscript","How to use dataframe","How to use matrices","How to use manipulate","How to use hist and pie", "How to use bar and scatter","How to use function of dplyr","Spoken tutorial useful for practice problem","practice problem improved r programming","Practice problem improved R explaination","Practice Problem difficult","Experience with Pedagogy of workshop","Experience of learning basic stat1","Experience improved by textbook companion","Experience of learning basic stat2","Experience with animation in R","Experience with creating R markdown","Experience with modelling cancer","Experience with cluster and classification learning","Experience, Motivation to use classification and clustering","Quality of instruction","Quality of spoken tutorial","Interactin with FOSSEE team","Live session learning","Overall quality","Pace","Helpful to know topic in advance","Overall exposure", "Did not learn much","Recommend using R","Will recommend workshop for friend","Happy with format","Workshop was crowded","Selective admission for less crowd","Apply fee so the crowd decrease","Knowledge before workshop","knowledge after workshop","Most liked aspect","Most dislike aspect","Joined spoken tutorial forum","Posted Question on spoken tutorial forum","Answered question on spoken tutorial forum","Doubts already answered on spoken tutorial forum","Spoken tutorial forum usefull after workshop","Spoken tutorial forum benifit all","Spoken tutorual forum helpful in conducting workshop","Spoken tutorial provide personal recognation","Will recommend spoken tutorial forum","like most about spoken tutorial forum","Self workshop requir help from FOSSEE","Sopken tutorial suppot is enough","No help required","Interesting activity","Other Suggestion")
+
+knitr::kable(workshop[1:5,1:7])
+```
+## 1.1) Encoding data to numbers 
+```{r}
+#converting Q16 of survey to numeric encoding
+workshop$`Helpful to know topic in advance`<-lapply(workshop$`Helpful to know topic in advance`, function(x){
+  switch(
+    x,
+    "Extremely useful"= x<-"5",
+    "Very useful"= x<-"4",
+    "Useful"= x<-"3",
+    "Somewhat useful"= x<-"2",
+    x<-"1"
+  )
+})
+
+#converting Q15 of survey to numeric encoding
+workshop$Pace<-lapply(workshop$Pace, function(x){
+  switch(
+    x,
+    "Acceptable"= x<-"5",
+    "Fast"= x<-"3",
+    "Slow"= x<-"3",
+    x<-"1"
+  )
+})
+```
+## 1.2)  Type conversion from char to numeric
+```{r}
+#removing text present with numeric data
+workshop[4]<-lapply(workshop[4], function(x){substr(x,1,2)})
+workshop[,21:34]<-lapply(workshop[,21:34], function(x) substring(x,1,1))
+
+#converting data to numeric
+workshop$Age<-as.numeric(workshop$Age) 
+workshop$Pace<-as.numeric(workshop$Pace)
+workshop$`Helpful to know topic in advance`<-as.numeric(workshop$`Helpful to know topic in advance`)
+workshop[,21:34]<-lapply(workshop[,21:34], function(x) type.convert(x))
+
+```
+## 1.3) Age distribution of audience
+```{r}
+#Age distribution of audience 
+library(ggplot2)
+ggplot(workshop[c(3,4)])+
+  geom_bar(mapping = aes(x=Age, fill = Audience))
+
+```
+
+## 1.4) Subsetting Numeric Data
+```{r paged.print=TRUE, results='asis'}
+#subsetting only numeric data to new table (without age)
+
+cleaned<-workshop[,c(17:34,38:52,53:64,71:75,77:79)]
+knitr::kable(cleaned[1:10,1:5])
+```
+# 2) Exploratory factor analysis
+
+## 2.1) loading libraries 
+```{r message=FALSE, warning=FALSE}
+## librarys for factor analysis
+
+library(REdaS) # for KMO and bartletts shpericity test
+library(psych) # for factor analysis
+library(tidyverse) #to select data and create subset of questions
+library(GPArotation) #for factor rotation
+library(nFactors) #for parallel processing and scree plot
+```
+
+## 2.2) Creating subset of data according to questions
+```{r message=FALSE, warning=FALSE}
+
+#Spoken Tutorial questions
+spoken<-cleaned %>%
+  select(contains("spoken"))
+
+#How to questions from workshop
+howTo<-cleaned %>%
+  select(contains("how to use"))
+
+```
+## 2.3) About KMO and Bartlett's test
+
+* **The Kaiser-Meyer-Olkin** Measure of Sampling Adequacy is a statistic that indicates the proportion
+of variance in your variables that might be caused by underlying factors. High values (close to 1.0) generally
+indicate that a factor analysis may be useful with your data. If the value is less than 0.50,
+the results of the factor analysis probably won't be very useful.
+
+* **Bartlett's test of sphericity** tests the hypothesis that your correlation matrix is an identity matrix,
+which would indicate that your variables are unrelated and therefore unsuitable for structure detection.
+Small values (less than 0.05) of the significance level indicate that a factor analysis may be useful with your data.
+
+## 2.4) EFA on Spoken Tutorial Related Questions
+
+### 2.4.1) KMO and bartlett's test on spoken tutorial subset
+
+```{r}
+# KMO and bartlett's test on data
+KMO(spoken)
+
+bart_spher(spoken)
+```
+### 2.4.2) Scree plot to determine the number of factor
+
+```{r Scree Plot, message=FALSE, warning=FALSE}
+#Scree plot to determine the number of factors to be made
+ev <- eigen(cor(spoken))
+ap <- parallel(subject=nrow(spoken),var=ncol(spoken),rep=100,cent=.05)
+nS <- nScree(x=ev$values, aparallel=ap$eigen$qevpea)
+plotnScree(nS)
+```
+----
+----
+### 2.4.3) Factor diagram for spoken tutorial data
+```{r}
+m1<-fa(spoken, nfactors = 3, rotate = "oblimin")
+fa.diagram(m1)
+```
+
