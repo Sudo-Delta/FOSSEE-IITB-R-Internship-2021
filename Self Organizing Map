@@ -1,0 +1,89 @@
+rm(list = ls())
+
+#Components of Vector X
+x1<-runif(1000)
+x2<-runif(1000)
+
+#Vector X
+x<-cbind.data.frame(x1,x2)
+
+
+plot(x1,x2)
+
+#number of neurons (post-synaptic)
+M<-round(25)
+
+#weights
+w1<-runif(M)
+w2<-runif(M)
+
+#Weight Vector
+w<-cbind.data.frame(w1,w2)
+
+w.x=w1
+w.y=w2
+##--------------------------------
+
+# Competition 
+## Euclidean distance
+
+# Random input from continuous input space
+#s<-round(runif(1,1,10))
+
+#winning neuron
+BMU<- function(s){
+  min=100
+  for( i in 1:length(w1)){
+    
+    dist = sqrt(  (x1[s]-w1[i])**2 + (x2[s]-w2[i])**2 )
+    
+    if(dist < min){
+      min=dist
+      winning_neuron=i
+    }
+    
+  }
+  
+  return(winning_neuron)
+}
+##-------------------------------
+initial_eta = 0.1
+initial_sig = 0.1
+total_itr = 1000
+tconst = 1000
+##--------------------------------
+
+eta<- function( time){
+  initial_eta*exp(-time/tconst)
+}
+
+##--------------------------------
+#Training
+
+for( time in 1:3000){
+  eta = initial_eta*exp(-time/tconst)
+  sig = initial_sig*exp(-time/tconst)
+  
+  # Random input from continuous input space
+  s<-round(runif(1,1,10))
+  winning_neuron=BMU(s)
+  
+  #distance of winning to other neurons
+  for (n in 1:length(w1)) {
+    
+    lateral_distance = sqrt((w1[winning_neuron]-w1[n])**2  + (w2[winning_neuron]-w2[n])**2)
+    
+    if(lateral_distance <= sig){
+      influence = exp(-(lateral_distance**2)/2*(sig**2))
+      
+      w1[n] = w1[n]+ eta *influence * (x1[s]-w1[n])
+      w2[n] = w2[n]+ eta *influence * (x2[s]-w2[n])
+    }
+  }
+}
+
+plot(w.x,w.y, xlim = c(0,2))
+
+plot(x1,x2, col = 2, xlim =c(0,2))
+points(w1,w2, col ="blue", pch = 2)
+  
